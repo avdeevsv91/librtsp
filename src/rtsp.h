@@ -22,6 +22,15 @@
 
 #define __TERM  "\r\n"
 #define SCMP(id,s) (strncasecmp(id,s,strlen(id)) == 0)
+#define STR_KEY_NUM(buf, key, num) do {  \
+		char *__point = NULL; \
+		if ((__point=strstr(buf, key))) { \
+			num = strtoul(__point+strlen(key), NULL, 10);  \
+			printf("%s %d\n", key, num); \
+		} else { \
+			num = 0; \
+		} \
+}while(0)
 
 enum __connection_state_e {
     __CON_S_INIT = 0,
@@ -69,10 +78,34 @@ struct __time_stat_t {
 
 struct connection_item_t {
     struct sockaddr_in addr;
-    int client_fd;
-    int server_rtcp_fd;
-    int server_rtp_fd;
-    int cseq;
+   	int client_fd;
+	int ch;
+	int dwtype;
+	int track_id;
+
+	struct {
+    	int server_rtcp_fd;
+    	int server_rtp_fd;
+	    unsigned int client_port_rtp;
+		unsigned int client_port_rtcp;
+		unsigned int server_port_rtp;
+		unsigned int server_port_rtcp;
+	    unsigned int range_start;
+	    unsigned int range_end;
+	    unsigned int rtcp_octet;
+	    unsigned int rtcp_packet_cnt;
+	    int rtcp_tick;
+	    int rtcp_tick_org;
+	    unsigned short rtp_seq;
+	    unsigned int rtp_timestamp;
+		unsigned int rtp_timeoffset;
+	} trans[2];
+
+	int video_type[2];
+	int video_fps[2];
+	int audio_type;
+	int audio_sample_rate; 	
+	int audio_poinum;
 
     //FILE *fp_rtcp_write;
     //FILE *fp_rtcp_read;
@@ -82,22 +115,11 @@ struct connection_item_t {
     enum __connection_state_e con_state;
     enum __parser_state_e parser_state;
     enum __method_e method;
-    unsigned int client_port_rtp;
-    unsigned int client_port_rtcp;
-    unsigned int server_port_rtp;
-    unsigned int server_port_rtcp;
+	bufpool_handle pool;
+    int cseq;
+    unsigned int ssrc;
     unsigned long long session_id;
     unsigned long long given_session_id;
-    unsigned int range_start;
-    unsigned int range_end;
-    unsigned int rtcp_octet;
-    unsigned int rtcp_packet_cnt;
-    int rtcp_tick;
-    int rtcp_tick_org;
-    unsigned short rtp_seq;
-    bufpool_handle pool;
-    unsigned int rtp_timestamp;
-    unsigned int ssrc;
     struct list_t list_entry;
 };
 
@@ -121,7 +143,13 @@ struct __rtsp_obj_t {
     unsigned        ctx; /* for rand_r */
     int             con_num;
     unsigned char   max_con;
-    int             priority; 
+	int				total_ch;
+	int video_type[2];
+	int video_fps[2];
+	int audio_type;
+	int audio_sample_rate; 	
+	int audio_poinum;
+    int priority; 
 };
 
 struct sock_select_t {
