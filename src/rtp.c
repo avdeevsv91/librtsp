@@ -22,13 +22,15 @@
  *              PRIVATE DEFINITIONS
  ******************************************************************************/
 //static void *rtpThrFxn(void *v);
-static inline int __rtp_send_h264(struct nal_rtp_t *rtp, struct list_head_t *trans_list);
-static inline int __rtp_send_eachconnection_h264(struct list_t *e, void *v);
+static inline int __rtp_send_h26x(struct nal_rtp_t *rtp, struct list_head_t *trans_list);
+static inline int __rtp_send_eachconnection_h26x(struct list_t *e, void *v);
 static inline int __rtp_send_audio(struct nal_rtp_t *rtp, struct list_head_t *trans_list);
 static inline int __rtp_send_eachconnection_audio(struct list_t *e, void *v);
 static inline int __rtp_setup_transfer(struct list_t *e, void *v);
-static inline int __transfer_nal(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize);
-static inline int __retrieve_sprop(rtsp_handle h, signed char *buf, size_t len);
+static inline int __transfer_nal_h264(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize);
+static inline int __transfer_nal_h265(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize);
+static inline int __retrieve_sprop_h264(rtsp_handle h, signed char *buf, size_t len);
+static inline int __retrieve_sprop_h265(rtsp_handle h, signed char *buf, size_t len);
 
 struct __transfer_set_t {
     struct list_head_t list_head;
@@ -41,7 +43,7 @@ struct __transfer_set_t {
  *              PRIVATE FUNCTIONS
  ******************************************************************************/
 
-static inline int __transfer_nal(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize)
+static inline int __transfer_nal_h264(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize)
 {
     struct nal_rtp_t rtp;
     unsigned int nri = nalptr[0] & 0x60;
@@ -53,7 +55,7 @@ static inline int __transfer_nal(struct list_head_t *trans_list, signed char *na
     p_header->p = 0;
     p_header->x = 0;
     p_header->cc = 0;
-    p_header->pt = 96 & 0x7F;
+    p_header->pt = RTSP_PAYLOAD_TYPE_H264 & 0x7F;
 
     if(nalsize <= __RTP_MAXPAYLOADSIZE){
         /* single packet */
@@ -68,7 +70,7 @@ static inline int __transfer_nal(struct list_head_t *trans_list, signed char *na
 
         rtp.rtpsize = nalsize + sizeof(rtp_hdr_t);
 
-        ASSERT(__rtp_send_h264(&rtp,trans_list) == SUCCESS, return FAILURE);
+        ASSERT(__rtp_send_h26x(&rtp,trans_list) == SUCCESS, return FAILURE);
     }  else  {
 
         nalptr += 1;
@@ -91,7 +93,7 @@ static inline int __transfer_nal(struct list_head_t *trans_list, signed char *na
             nalptr += __RTP_MAXPAYLOADSIZE - 2;
             nalsize -= __RTP_MAXPAYLOADSIZE - 2;
 
-            ASSERT(__rtp_send_h264(&rtp,trans_list) == SUCCESS, return FAILURE);
+            ASSERT(__rtp_send_h26x(&rtp,trans_list) == SUCCESS, return FAILURE);
 
             /* intended xor. blame vim :( */
             payload[1] &= 0xFF ^ (1<<7); 
@@ -109,7 +111,76 @@ static inline int __transfer_nal(struct list_head_t *trans_list, signed char *na
 
         memcpy(&(payload[2]), nalptr, nalsize);
 
-        ASSERT(__rtp_send_h264(&rtp, trans_list) == SUCCESS, return FAILURE);
+        ASSERT(__rtp_send_h26x(&rtp, trans_list) == SUCCESS, return FAILURE);
+
+    }
+
+    return SUCCESS;
+}
+
+static inline int __transfer_nal_h265(struct list_head_t *trans_list, signed char *nalptr, size_t nalsize)
+{
+    struct nal_rtp_t rtp;
+    unsigned int pt = (nalptr[0] & 0x7E) >> 1;
+    rtp_hdr_t *p_header = &(rtp.packet.header);
+    signed char *payload = rtp.packet.payload;
+
+    p_header->version = 2;
+    p_header->p = 0;
+    p_header->x = 0;
+    p_header->cc = 0;
+    p_header->pt = RTSP_PAYLOAD_TYPE_H265 & 0x7F;
+
+    if(nalsize <= __RTP_MAXPAYLOADSIZE) {
+        /* single packet */
+        /* VPS, SPS, PPS, SEI is not marked */
+        if(pt != H265_NAL_TYPE_VPS && pt != H265_NAL_TYPE_SPS && pt != H265_NAL_TYPE_PPS && pt != H265_NAL_TYPE_SEI) { 
+            p_header->m = 1;
+        } else {
+            p_header->m = 0;
+        }
+        memcpy(payload, nalptr, nalsize);
+
+        rtp.rtpsize = nalsize + sizeof(rtp_hdr_t);
+
+        ASSERT(__rtp_send_h26x(&rtp,trans_list) == SUCCESS, return FAILURE);
+    }  else  {
+
+        nalptr += 2;
+        nalsize -= 2;
+
+        payload[0] = 49 << 1;
+        payload[1] = 1;
+        payload[2] = pt;
+        payload[2] += 0x80;
+
+        /* send fragmented nal */
+        while(nalsize > __RTP_MAXPAYLOADSIZE - 3) {
+
+            p_header->m = 0;
+
+            memcpy(&(payload[3]), nalptr, __RTP_MAXPAYLOADSIZE - 3);
+
+            rtp.rtpsize = sizeof(rtp_hdr_t) + __RTP_MAXPAYLOADSIZE;
+
+            nalptr += __RTP_MAXPAYLOADSIZE - 3;
+            nalsize -= __RTP_MAXPAYLOADSIZE - 3;
+
+            ASSERT(__rtp_send_h26x(&rtp, trans_list) == SUCCESS, return FAILURE);
+
+            payload[2] &= (payload[2] & 0x7F);
+        }
+
+        /* send trailing nal */
+        p_header->m = 1;
+
+        payload[2] += 0x40;
+
+        rtp.rtpsize = nalsize + sizeof(rtp_hdr_t) + 3;
+
+        memcpy(&(payload[3]), nalptr, nalsize);
+
+        ASSERT(__rtp_send_h26x(&rtp, trans_list) == SUCCESS, return FAILURE);
 
     }
 
@@ -148,7 +219,7 @@ static inline int __transfer_audio(struct list_head_t *trans_list, signed char *
 }
 
 
-static inline int __rtp_send_eachconnection_h264(struct list_t *e, void *v)
+static inline int __rtp_send_eachconnection_h26x(struct list_t *e, void *v)
 {
     int send_bytes;
     struct connection_item_t *con;
@@ -193,9 +264,9 @@ static inline int __rtp_send_eachconnection_h264(struct list_t *e, void *v)
     return FAILURE;
 }
 
-static inline int __rtp_send_h264(struct nal_rtp_t *rtp, struct list_head_t *trans_list)
+static inline int __rtp_send_h26x(struct nal_rtp_t *rtp, struct list_head_t *trans_list)
 {
-    return list_map_inline(trans_list,(__rtp_send_eachconnection_h264), rtp);
+    return list_map_inline(trans_list,(__rtp_send_eachconnection_h26x), rtp);
 }
 
 static inline int __rtp_send_eachconnection_audio(struct list_t *e, void *v)
@@ -299,7 +370,7 @@ error:
     return ret;
 }
 
-static inline int __retrieve_sprop(rtsp_handle h, signed char *buf, size_t len)
+static inline int __retrieve_sprop_h264(rtsp_handle h, signed char *buf, size_t len)
 {
     signed char *nalptr;
     size_t single_len;
@@ -377,6 +448,113 @@ static inline int __retrieve_sprop(rtsp_handle h, signed char *buf, size_t len)
     return SUCCESS;
 }
 
+static inline int __retrieve_sprop_h265(rtsp_handle h, signed char *buf, size_t len)
+{
+    signed char *nalptr;
+    size_t single_len;
+    mime_encoded_handle base64 = NULL;
+    mime_encoded_handle base16 = NULL;
+    unsigned int pt;
+    
+    /* check VPS is set */
+    if(!(h->sprop_vps_b64)){
+        nalptr = buf;
+        single_len = 0;
+
+        while (__split_nal(buf,&nalptr,&single_len,len) == SUCCESS) {
+            pt = (nalptr[0] & 0x7E) >> 1;
+            if(pt == H265_NAL_TYPE_VPS) {
+                ASSERT(single_len >= 4, return FAILURE);
+                ASSERT(base64 = mime_base64_create((char *)&(nalptr[0]),single_len), return FAILURE);
+
+                DASSERT(base64->base == 64, return FAILURE);
+
+                /* optimistic lock */
+                rtsp_lock(h);
+                if(h->sprop_vps_b64) {
+                    DBG("vps is set by another thread?\n");
+                    mime_encoded_delete(base64);
+                } else {
+                    h->sprop_vps_b64 = base64;
+                }
+                rtsp_unlock(h);
+            }
+        }
+        rtsp_lock(h);
+        rtsp_unlock(h);
+        base64 = NULL;
+    }
+
+    /* check SPS is set */
+    if(!(h->sprop_sps_b64)){ 
+        nalptr = buf;
+        single_len = 0;
+
+        while (__split_nal(buf,&nalptr,&single_len,len) == SUCCESS) {
+            pt = (nalptr[0] & 0x7E) >> 1;
+            if(pt == H265_NAL_TYPE_SPS) {
+                ASSERT(base64 = mime_base64_create((char *)&(nalptr[0]),single_len), return FAILURE);
+                ASSERT(base16 = mime_base16_create((char *)&(nalptr[1]),3), return FAILURE);
+
+                DASSERT(base16->base == 16, return FAILURE);
+                DASSERT(base64->base == 64, return FAILURE);
+
+                /* optimistic lock */
+                rtsp_lock(h);
+                if(h->sprop_sps_b64) {
+                    DBG("sps is set by another thread?\n");
+                    mime_encoded_delete(base64);
+                } else {
+                    h->sprop_sps_b64 = base64;
+                }
+                
+                if(h->sprop_sps_b16) {
+                    DBG("sps is set by another thread?\n");
+                    mime_encoded_delete(base16);
+                } else {
+                    h->sprop_sps_b16 = base16;
+                }
+                rtsp_unlock(h);
+            }
+
+        }
+
+        base64 = NULL;
+        base16 = NULL;
+    }
+
+    /* check PPS is set */
+    if(!(h->sprop_pps_b64)){
+        nalptr = buf;
+        single_len = 0;
+        while (__split_nal(buf,&nalptr,&single_len,len) == SUCCESS) {
+            pt = (nalptr[0] & 0x7E) >> 1;
+
+            if(pt == H265_NAL_TYPE_PPS) {
+                ASSERT(single_len >= 4, return FAILURE);
+                ASSERT(base64 = mime_base64_create((char *)&(nalptr[0]),single_len), return FAILURE);
+
+                DASSERT(base64->base == 64, return FAILURE);
+
+                /* optimistic lock */
+                rtsp_lock(h);
+                if(h->sprop_pps_b64) {
+                    DBG("pps is set by another thread?\n");
+                    mime_encoded_delete(base64);
+                } else {
+                    h->sprop_pps_b64 = base64;
+                }
+                rtsp_unlock(h);
+            }
+        }
+        rtsp_lock(h);
+        rtsp_unlock(h);
+        base64 = NULL;
+    }
+
+    return SUCCESS;
+}
+
 static inline int __rtcp_poll(struct list_t *e, void *v)
 {
     struct connection_item_t *con;
@@ -421,7 +599,11 @@ int rtp_send_media(rtsp_handle h, int ch,  int type, signed char *buf, size_t le
     
     //__get_timestamp_offset(&h->stat, p_tv);
     
-    ASSERT(__retrieve_sprop(h,buf,len) == SUCCESS, goto error);
+    if(h->video_type[ch] == RTSP_PAYLOAD_TYPE_H265) {
+        ASSERT(__retrieve_sprop_h265(h,buf,len) == SUCCESS, goto error);
+    } else {
+        ASSERT(__retrieve_sprop_h264(h,buf,len) == SUCCESS, goto error);
+    }
 
 	trans.cur_ch = ch;
 	trans.cur_dwtype = type;
@@ -435,7 +617,11 @@ int rtp_send_media(rtsp_handle h, int ch,  int type, signed char *buf, size_t le
 	if (trans.list_head.list) {
 		if (type < RTSP_MEDIA_DWTYPE_AUDIO) {
 			while (__split_nal(buf,&nalptr,&single_len,len) == SUCCESS) {
-				ASSERT(__transfer_nal(&(trans.list_head),nalptr,single_len) == SUCCESS, goto error);
+			    if(h->video_type[ch] == RTSP_PAYLOAD_TYPE_H265) {
+				    ASSERT(__transfer_nal_h265(&(trans.list_head),nalptr,single_len) == SUCCESS, goto error);
+			    } else {
+				    ASSERT(__transfer_nal_h264(&(trans.list_head),nalptr,single_len) == SUCCESS, goto error);
+                }
 			}
 		} else {
 			ASSERT(__transfer_audio(&(trans.list_head), buf, len) == SUCCESS, goto error);

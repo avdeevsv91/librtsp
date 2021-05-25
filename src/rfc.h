@@ -28,6 +28,12 @@ typedef          short int16;
 #define H264_NAL_TYPE_SPS 7
 #define H264_NAL_TYPE_PPS 8
 
+#define H265_NAL_TYPE_IDR 19
+#define H265_NAL_TYPE_VPS 32
+#define H265_NAL_TYPE_SPS 33
+#define H265_NAL_TYPE_PPS 34
+#define H265_NAL_TYPE_SEI 39
+
 typedef enum {
     RTCP_SR   = 200,
     RTCP_RR   = 201,

@@ -257,11 +257,17 @@ static void __method_describe(struct connection_item_t *p, rtsp_handle h)
 {
     char sdp[__RTSP_TCP_BUF_SIZE];
 
-    if(h->sprop_sps_b64 && h->sprop_sps_b16 && h->sprop_pps_b64) {
+    if((p->dwtype == RTSP_PAYLOAD_TYPE_H264 || h->sprop_vps_b64) && h->sprop_sps_b64 && h->sprop_sps_b16 && h->sprop_pps_b64) {
+        if(p->dwtype == RTSP_PAYLOAD_TYPE_H265) {
+            DASSERT(h->sprop_vps_b64->result, return);
+        }
         DASSERT(h->sprop_sps_b64->result, return);
         DASSERT(h->sprop_sps_b16->result, return);
         DASSERT(h->sprop_pps_b64->result, return);
 
+        if(p->dwtype == RTSP_PAYLOAD_TYPE_H265) {
+            DBG("VPS BASE64:%s\n",h->sprop_vps_b64->result);
+        }
         DBG("SPS BASE64:%s\n",h->sprop_sps_b64->result);
         DBG("SPS BASE16:%s\n",h->sprop_sps_b16->result);
         DBG("PPS BASE64:%s\n",h->sprop_pps_b64->result);
@@ -299,55 +305,58 @@ static void __method_describe(struct connection_item_t *p, rtsp_handle h)
 					p->trans[1].rtp_timeoffset = p->audio_poinum;
 		} else {
 			snprintf(sdp, __RTSP_TCP_BUF_SIZE- 1,
-					"v=0\r\n"
-					"o=- 0 0 IN IP4 127.0.0.1\r\n"
-					"s=librtsp\r\n"
-					"c=IN IP4 0.0.0.0\r\n"
-					"t=0 0\r\n"
-					"a=tool:libavformat 52.73.0\r\n"
-					"m=video 0 RTP/AVP %d\r\n"
-					"a=rtpmap:%d %s/90000\r\n"
-					"a=fmtp:%d packetization-mode=1;"
-					" profile-level-id=%s;"
-					" sprop-parameter-sets=%s,%s;\r\n"
-					"a=control:trackID=0\r\n"
-					"m=audio 0 RTP/AVP %d\r\n"
-					"a=rtpmap:%d %s/%d/1\r\n"
-					"a=framerate:%d\r\n"
-					"a=control:trackID=1\r\n",
-					h->video_type[p->dwtype], h->video_type[p->dwtype], 
-					(h->video_type[p->dwtype]==RTSP_PAYLOAD_TYPE_H264)?"H264":"H265", 
-					h->video_type[p->dwtype], 
-					h->sprop_sps_b16->result,
-					h->sprop_sps_b64->result,
-					h->sprop_pps_b64->result,
-					h->audio_type, h->audio_type,
-					(h->audio_type==RTSP_PAYLOAD_TYPE_G711_PCMA)?"pcma":"pcmu",
-					h->audio_sample_rate, h->audio_sample_rate/h->audio_poinum);
+				    "v=0\r\n"
+				    "o=- 0 0 IN IP4 127.0.0.1\r\n"
+				    "s=librtsp\r\n"
+				    "c=IN IP4 0.0.0.0\r\n"
+				    "t=0 0\r\n"
+				    "a=tool:libavformat 52.73.0\r\n"
+				    "m=video 0 RTP/AVP %d\r\n"
+				    "a=rtpmap:%d %s/90000\r\n"
+				    "a=fmtp:%d packetization-mode=1;"
+				    " profile-level-id=%s;"
+				    " sprop-parameter-sets=%s,%s;\r\n"
+				    "a=control:trackID=0\r\n"
+				    "m=audio 0 RTP/AVP %d\r\n"
+				    "a=rtpmap:%d %s/%d/1\r\n"
+				    "a=framerate:%d\r\n"
+				    "a=control:trackID=1\r\n",
+				    h->video_type[p->dwtype], h->video_type[p->dwtype], 
+				    (h->video_type[p->dwtype]==RTSP_PAYLOAD_TYPE_H265)?"H265":"H264",
+				    h->video_type[p->dwtype], 
+				    h->sprop_sps_b16->result,
+				    h->sprop_sps_b64->result,
+				    h->sprop_pps_b64->result,
+				    h->audio_type, h->audio_type,
+				    (h->audio_type==RTSP_PAYLOAD_TYPE_G711_PCMA)?"pcma":"pcmu",
+				    h->audio_sample_rate, h->audio_sample_rate/h->audio_poinum);
 
-					p->video_type[p->dwtype] = h->video_type[p->dwtype];
-					p->video_fps[p->dwtype] = h->video_fps[p->dwtype];
-					p->audio_type = h->audio_type;
-					p->audio_sample_rate = h->audio_sample_rate;
-					p->audio_poinum = h->audio_poinum;
-					p->trans[0].rtp_timeoffset = 90000/p->video_fps[p->dwtype];
-					p->trans[1].rtp_timeoffset = p->audio_poinum;
+			p->video_type[p->dwtype] = h->video_type[p->dwtype];
+			p->video_fps[p->dwtype] = h->video_fps[p->dwtype];
+			p->audio_type = h->audio_type;
+			p->audio_sample_rate = h->audio_sample_rate;
+			p->audio_poinum = h->audio_poinum;
+			p->trans[0].rtp_timeoffset = 90000/p->video_fps[p->dwtype];
+			p->trans[1].rtp_timeoffset = p->audio_poinum;
 		}
     } else {
-        strncpy(sdp,
+        snprintf(sdp, __RTSP_TCP_BUF_SIZE- 1,
                 "v=0\r\n"
                 "o=- 0 0 IN IP4 127.0.0.1\r\n"
                 "s=librtsp\r\n"
                 "c=IN IP4 0.0.0.0\r\n"
                 "t=0 0\r\n"
                 "a=tool:libavformat 52.73.0\r\n"
-                "m=video 0 RTP/AVP 96\r\n"
-                "a=rtpmap:96 H264/90000\r\n"
-                "a=fmtp:96 packetization-mode=1\r\n"
+                "m=video 0 RTP/AVP %d\r\n"
+                "a=rtpmap:%d %s/90000\r\n"
+                "a=fmtp:%d packetization-mode=1\r\n"
                 "a=control:streamid=0\r\n"
 				"a=control:trackID=0\r\n"
 				"m=audio 0 RTP/AVP 8\r\n"
-				"a=control:trackID=1\r\n" ,  __RTSP_TCP_BUF_SIZE - 1);
+				"a=control:trackID=1\r\n",
+				h->video_type[p->dwtype], h->video_type[p->dwtype], 
+				(h->video_type[p->dwtype]==RTSP_PAYLOAD_TYPE_H265)?"H265":"H264",
+				h->video_type[p->dwtype]);
     }
 
     fprintf(p->fp_tcp_write, "RTSP/1.0 200 OK\r\n"
@@ -868,6 +877,7 @@ void rtsp_finish(rtsp_handle h)
             bufpool_delete(h->con_pool);
             bufpool_delete(h->transfer_pool);
 
+            mime_encoded_delete(h->sprop_vps_b64);
             mime_encoded_delete(h->sprop_sps_b64);
             mime_encoded_delete(h->sprop_sps_b16);
             mime_encoded_delete(h->sprop_pps_b64);

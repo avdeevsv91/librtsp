@@ -137,6 +137,7 @@ struct __rtsp_obj_t {
     bufpool_handle transfer_pool;
     unsigned short  port;
     struct __time_stat_t stat;
+    mime_encoded_handle sprop_vps_b64;
     mime_encoded_handle sprop_sps_b64;
     mime_encoded_handle sprop_pps_b64;
     mime_encoded_handle sprop_sps_b16;
