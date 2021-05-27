@@ -107,7 +107,7 @@ static inline int __transfer_nal_h264(struct list_head_t *trans_list, signed cha
         /* intended xor. blame vim :( */
         payload[1] &= 0xFF ^ (1<<7);
 
-        rtp.rtpsize = nalsize + sizeof(rtp_hdr_t);
+        rtp.rtpsize = nalsize + sizeof(rtp_hdr_t) + 2;
 
         memcpy(&(payload[2]), nalptr, nalsize);
 
