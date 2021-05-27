@@ -257,15 +257,15 @@ static void __method_describe(struct connection_item_t *p, rtsp_handle h)
 {
     char sdp[__RTSP_TCP_BUF_SIZE];
 
-    if((p->dwtype == RTSP_PAYLOAD_TYPE_H264 || h->sprop_vps_b64) && h->sprop_sps_b64 && h->sprop_sps_b16 && h->sprop_pps_b64) {
-        if(p->dwtype == RTSP_PAYLOAD_TYPE_H265) {
+    if(((h->video_type[p->dwtype] == RTSP_PAYLOAD_TYPE_H264) || h->sprop_vps_b64) && h->sprop_sps_b64 && h->sprop_sps_b16 && h->sprop_pps_b64) {
+        if(h->video_type[p->dwtype] == RTSP_PAYLOAD_TYPE_H265) {
             DASSERT(h->sprop_vps_b64->result, return);
         }
         DASSERT(h->sprop_sps_b64->result, return);
         DASSERT(h->sprop_sps_b16->result, return);
         DASSERT(h->sprop_pps_b64->result, return);
 
-        if(p->dwtype == RTSP_PAYLOAD_TYPE_H265) {
+        if(h->video_type[p->dwtype] == RTSP_PAYLOAD_TYPE_H265) {
             DBG("VPS BASE64:%s\n",h->sprop_vps_b64->result);
         }
         DBG("SPS BASE64:%s\n",h->sprop_sps_b64->result);
