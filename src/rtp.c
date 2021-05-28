@@ -60,7 +60,7 @@ static inline int __transfer_nal_h264(struct list_head_t *trans_list, signed cha
     if(nalsize <= __RTP_MAXPAYLOADSIZE){
         /* single packet */
         /* SPS, PPS, SEI is not marked */
-        if(pt != 7 && pt != 8 && pt != 6) { 
+        if(pt != H264_NAL_TYPE_SPS && pt != H264_NAL_TYPE_PPS && pt != H264_NAL_TYPE_SEI) { 
             p_header->m = 1;
         } else {
             p_header->m = 0;
