@@ -189,6 +189,8 @@ static void __parse_cseq(struct connection_item_t *p, char *buf)
         ASSERT((p->cseq = atoi(tok)) > 0, goto error);
 
         p->parser_state = __PARSER_S_CSEQ;
+    } else if(SCMP(__STR_TRANSPORT,buf)) { // ffmpeg fix
+        __parse_transport(p, buf);
     }
 
     return;
