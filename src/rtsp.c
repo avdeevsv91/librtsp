@@ -423,8 +423,8 @@ static void __method_play(struct connection_item_t *p, rtsp_handle h)
 		p->track_id = i;
 		ASSERT(__bind_rtcp(p) == SUCCESS, return );
 		ASSERT(__bind_rtp(p) == SUCCESS, return );
-		p->trans[p->track_id].rtp_timestamp = rand_r(&h->ctx);
-		p->trans[p->track_id].rtp_seq = rand_r(&h->ctx);
+		p->trans[p->track_id].rtp_timestamp = 0;
+		p->trans[p->track_id].rtp_seq = 1;
 		p->trans[p->track_id].rtcp_octet = 0; 
 		p->trans[p->track_id].rtcp_packet_cnt= 0; 
 		p->trans[p->track_id].rtcp_tick_org = 150; // TODO: must be variant
