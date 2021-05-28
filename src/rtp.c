@@ -236,7 +236,7 @@ static inline int __rtp_send_eachconnection_h26x(struct list_t *e, void *v)
 
     rtp->packet.header.seq = htons(con->trans[track_id].rtp_seq);
     rtp->packet.header.ts = htonl(con->trans[track_id].rtp_timestamp);
-    rtp->packet.header.ssrc = htonl(con->ssrc);
+    rtp->packet.header.ssrc = htonl(con->ssrc[track_id]);
     con->trans[track_id].rtp_seq += 1;
 	if (rtp->packet.header.m) {
 		con->trans[track_id].rtp_timestamp += con->trans[track_id].rtp_timeoffset;
@@ -286,7 +286,7 @@ static inline int __rtp_send_eachconnection_audio(struct list_t *e, void *v)
 
     rtp->packet.header.seq = htons(con->trans[track_id].rtp_seq);
     rtp->packet.header.ts = htonl(con->trans[track_id].rtp_timestamp);
-    rtp->packet.header.ssrc = htonl(con->ssrc);
+    rtp->packet.header.ssrc = htonl(con->ssrc[track_id]);
 	rtp->packet.header.pt = con->audio_type;
     con->trans[track_id].rtp_seq += 1;
 	con->trans[track_id].rtp_timestamp += con->trans[track_id].rtp_timeoffset;

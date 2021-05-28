@@ -117,7 +117,7 @@ struct connection_item_t {
     enum __method_e method;
 	bufpool_handle pool;
     int cseq;
-    unsigned int ssrc;
+    unsigned int ssrc[2];
     unsigned long long session_id;
     unsigned long long given_session_id;
     struct list_t list_entry;

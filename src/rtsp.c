@@ -373,8 +373,11 @@ static void __method_setup(struct connection_item_t *p, rtsp_handle h)
     /* make randomized session id */
 	if (!p->session_id) {
     	p->session_id = __get_random_llu(&h->ctx);
-    	p->ssrc = (unsigned int)(__get_random_llu(&h->ctx));
 	}
+
+	if (!p->ssrc[p->track_id]) {
+        p->ssrc[p->track_id] = (unsigned int)(__get_random_llu(&h->ctx));
+    }
 
     DBG("created session id %llx\n", p->session_id);
     p->trans[p->track_id].server_port_rtp = SERVER_RTP_PORT + 3*p->ch + p->dwtype + p->track_id;

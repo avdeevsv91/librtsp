@@ -31,7 +31,7 @@ static inline int __rtcp_send_sr(struct connection_item_t *con)
     ts_l = (((double)tv.tv_usec) / 1e6) * 4294967296.0;
 
     rtcp_t rtcp = { common: {version: 2, length: htons(6), p:0, count: 0, pt:RTCP_SR},
-        r: { sr: { ssrc: htonl(con->ssrc),
+        r: { sr: { ssrc: htonl(con->ssrc[con->track_id]),
             ntp_sec: htonl(ts_h),
             ntp_frac: htonl(ts_l),
             rtp_ts: htonl(con->trans[con->track_id].rtp_timestamp),
